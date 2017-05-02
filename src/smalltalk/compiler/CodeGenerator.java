@@ -66,6 +66,7 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         currentClassScope = ctx.classScope;
         Code code = visit(ctx.body()).join(Code.of(Bytecode.SELF, Bytecode.RETURN));
         ctx.scope.compiledBlock = new STCompiledBlock(currentClassScope, ctx.scope);
+        ctx.scope.compiledBlock.bytecode = code.bytes();
         popScope();
         return code;
     }
@@ -126,6 +127,10 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
     @Override
     public Code visitKeywordMethod(SmalltalkParser.KeywordMethodContext ctx) {
         pushScope(ctx.scope);
+        for (TerminalNode keywordNode : ctx.KEYWORD()) {
+            String keyword = keywordNode.getText();
+            addLiteral(keyword);
+        }
         ctx.scope.compiledBlock = new STCompiledBlock(currentClassScope, ctx.scope);
         ctx.scope.compiledBlock.bytecode = visit(ctx.methodBlock())
                 .join(Code.of(Bytecode.POP, Bytecode.SELF, Bytecode.BLOCK_RETURN))
@@ -296,7 +301,21 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
                                Code receiverCode,
                                List<SmalltalkParser.BinaryExpressionContext> args,
                                List<TerminalNode> keywords) {
-        return null;
+        for (TerminalNode keyword : keywords) {
+            addLiteral(keyword.getText());
+        }
+        String receiverId = receiver.getText();
+        int receiverIndex = getLiteralIndex(receiverId);
+
+        Code code = Code.None;
+        code.join(Code.of(Bytecode.SEND, (short) receiverCode.n, (short) receiverIndex));
+        return code;
+    }
+
+    @Override
+    public Code visitKeywordSend(SmalltalkParser.KeywordSendContext ctx) {
+        Code recvCode = Code.None;
+        return sendKeywordMsg(ctx.recv, recvCode, ctx.args, ctx.KEYWORD());
     }
 
     public String getProgramSourceForSubtree(ParserRuleContext ctx) {
