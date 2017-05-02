@@ -8,7 +8,6 @@ import smalltalk.compiler.symbols.STClass;
 import smalltalk.compiler.symbols.STCompiledBlock;
 import smalltalk.compiler.symbols.STPrimitiveMethod;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -22,8 +21,6 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
 
     public STClass currentClassScope;
     public Scope currentScope;
-
-    private List<String> dict = new ArrayList<>();
 
     /**
      * With which compiler are we generating code?
@@ -230,7 +227,7 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
     }
 
     public int getLiteralIndex(String s) {
-        return dict.indexOf(s);
+        return currentClassScope.stringTable.toList().indexOf(s);
     }
 
     @Override
@@ -265,9 +262,7 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
     }};
 
     public void addLiteral(String id) {
-        if (!dict.contains(id)) {
-            dict.add(id);
-        }
+        currentClassScope.stringTable.add(id);
     }
 
     public Code dbgAtEndMain(Token t) {
