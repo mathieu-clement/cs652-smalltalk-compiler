@@ -6,14 +6,7 @@ import org.antlr.v4.runtime.CharStream;
 import org.antlr.v4.runtime.CommonTokenStream;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.tree.ParseTreeWalker;
-import smalltalk.compiler.symbols.STArg;
-import smalltalk.compiler.symbols.STBlock;
-import smalltalk.compiler.symbols.STClass;
-import smalltalk.compiler.symbols.STField;
-import smalltalk.compiler.symbols.STMethod;
-import smalltalk.compiler.symbols.STPrimitiveMethod;
-import smalltalk.compiler.symbols.STSymbolTable;
-import smalltalk.compiler.symbols.STVariable;
+import smalltalk.compiler.symbols.*;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -26,6 +19,7 @@ public class Compiler {
 	protected CommonTokenStream tokens;
 	protected SmalltalkParser.FileContext fileTree;
 	protected String fileName;
+	private CodeGenerator codeGenerator = new CodeGenerator(this);
 	public boolean genDbg; // generate dbg file,line instructions
 
 	public final List<String> errors = new ArrayList<>();
@@ -39,7 +33,14 @@ public class Compiler {
 	}
 
 	public STSymbolTable compile(String fileName, String input) {
-		return symtab;
+	    org.antlr.v4.runtime.ANTLRInputStream stream = new org.antlr.v4.runtime.ANTLRInputStream(input);
+
+        ParserRuleContext tree = parseClasses(stream);
+        defSymbols(tree);
+        resolveSymbols(tree);
+        codeGenerator.visit(tree);
+
+        return symtab;
 	}
 
 	/** Parse classes and/or a chunk of code, returning AST root.
@@ -74,12 +75,12 @@ public class Compiler {
 
 	public STBlock createBlock(STMethod currentMethod, ParserRuleContext tree) {
 //		System.out.println("create block in "+currentMethod+" "+args);
-		return null;
+		return new STBlock(currentMethod, tree);
 	}
 
 	public STMethod createMethod(String selector, ParserRuleContext tree) {
 //		System.out.println("	create method "+selector+" "+args);
-		return null;
+		return new STMethod(selector, tree);
 	}
 
 	public STPrimitiveMethod createPrimitiveMethod(STClass currentClass,
@@ -88,9 +89,9 @@ public class Compiler {
 	                                               SmalltalkParser.MethodContext tree)
 	{
 //		System.out.println("	create primitive "+selector+" "+args+"->"+primitiveName);
-		// convert "<classname>_<methodname>" Primitive value
+		// convert "<classname>_<methodname>" Primitive value TODO Huh?
 		// warn if classname!=currentClass
-		return null;
+		return new STPrimitiveMethod(selector, tree, primitiveName);
 	}
 
 
@@ -109,15 +110,15 @@ public class Compiler {
 	}
 
 	public void defineFields(Scope scope, List<String> names) {
-		defineVariables(scope, names, n -> new STField(n));
+		defineVariables(scope, names, STField::new);
 	}
 
 	public void defineArguments(Scope scope, List<String> names) {
-		defineVariables(scope, names, n -> new STArg(n));
+		defineVariables(scope, names, STArg::new);
 	}
 
 	public void defineLocals(Scope scope, List<String> names) {
-		defineVariables(scope, names, n -> new STVariable(n));
+		defineVariables(scope, names, STVariable::new);
 	}
 
 	// Convenience methods for code gen
