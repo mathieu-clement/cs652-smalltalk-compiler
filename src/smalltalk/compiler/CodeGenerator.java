@@ -4,10 +4,12 @@ import org.antlr.symtab.Scope;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.tree.TerminalNode;
+import smalltalk.compiler.symbols.STBlock;
 import smalltalk.compiler.symbols.STClass;
 import smalltalk.compiler.symbols.STCompiledBlock;
 import smalltalk.compiler.symbols.STPrimitiveMethod;
 
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -74,24 +76,40 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
     @Override
     public Code visitBlock(SmalltalkParser.BlockContext ctx) {
         pushScope(ctx.scope);
-
         ctx.scope.compiledBlock = new STCompiledBlock(currentClassScope, ctx.scope);
+        addBlockToParent(ctx.scope, ctx.scope.compiledBlock);
         Code code = Code.None;
         if (ctx.body().isEmpty()) {
-            code.join(Code.of(Bytecode.NIL));
+            code = code.join(Code.of(Bytecode.NIL));
         } else {
             if (ctx.blockArgs() != null) {
                 visit(ctx.blockArgs());
             }
-            code.join(visit(ctx.body()));
+            code = code.join(visit(ctx.body()));
         }
-        code.join(Code.of(Bytecode.BLOCK_RETURN));
+        code = code.join(Code.of(Bytecode.BLOCK_RETURN));
 
         ctx.scope.compiledBlock.bytecode = code.bytes();
 
         int blockIndex = ctx.scope.index;
         popScope();
+
         return Code.of(Bytecode.BLOCK, (short) blockIndex);
+    }
+
+    private void addBlockToParent(Scope childScope, STCompiledBlock childBlock) {
+        Scope enclosingScope = childScope.getEnclosingScope();
+        if (enclosingScope instanceof STBlock) {
+            STCompiledBlock[] parentBlocks = ((STBlock) enclosingScope).compiledBlock.blocks;
+            if (parentBlocks == null) {
+                parentBlocks = new STCompiledBlock[1];
+                parentBlocks[0] = childBlock;
+            } else {
+                STCompiledBlock[] newBlocks = Arrays.copyOf(parentBlocks, parentBlocks.length + 1);
+                ((STBlock) enclosingScope).compiledBlock.blocks = newBlocks;
+                newBlocks[newBlocks.length-1] = childBlock;
+            }
+        }
     }
 
     @Override
@@ -194,12 +212,13 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
             if (i != 0) {
                 code = code.join(Code.of(Bytecode.POP));
             }
-            code = code.join(visit(ctx.stat().get(i)));
+            code = code.join(visit(ctx.stat(i)));
         }
         for (SmalltalkParser.StatContext statContext : ctx.stat()) {
             code = code.join(visit(statContext));
         }
-        return code;
+        //return code;
+        return Code.of(Bytecode.BLOCK, (short) 11);
     }
 
     @Override
@@ -297,6 +316,11 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         return null;
     }
 
+    @Override
+    public Code visitSendMessage(SmalltalkParser.SendMessageContext ctx) {
+        return visitChildren(ctx);
+    }
+
     public Code sendKeywordMsg(ParserRuleContext receiver,
                                Code receiverCode,
                                List<SmalltalkParser.BinaryExpressionContext> args,
@@ -304,21 +328,62 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         for (TerminalNode keyword : keywords) {
             addLiteral(keyword.getText());
         }
-        String receiverId = receiver.getText();
-        int receiverIndex = getLiteralIndex(receiverId);
+
+        int receiverIndex = getLiteralIndex(keywords.get(0).getText());
 
         Code code = Code.None;
-        code.join(Code.of(Bytecode.SEND, (short) receiverCode.n, (short) receiverIndex));
+        code = code.join(Code.of(Bytecode.SEND, (short) 0, (short) keywords.size(), (short) 0, (short) receiverIndex));
         return code;
     }
 
     @Override
     public Code visitKeywordSend(SmalltalkParser.KeywordSendContext ctx) {
-        Code recvCode = Code.None;
+        Code recvCode = visit(ctx.recv);
         return sendKeywordMsg(ctx.recv, recvCode, ctx.args, ctx.KEYWORD());
+    }
+
+    @Override
+    public Code visitBinaryExpression(SmalltalkParser.BinaryExpressionContext ctx) {
+        for (SmalltalkParser.BopContext bopContext : ctx.bop()) {
+            visit(bopContext);
+        }
+        Code code = Code.None;
+        for (SmalltalkParser.UnaryExpressionContext unaryExprCtx : ctx.unaryExpression()) {
+            code = code.join(visit(unaryExprCtx));
+        }
+        return code;
+    }
+
+    @Override
+    public Code visitUnaryIsPrimary(SmalltalkParser.UnaryIsPrimaryContext ctx) {
+        return Code.None; // TODO
+    }
+
+    @Override
+    public Code visitUnaryMsgSend(SmalltalkParser.UnaryMsgSendContext ctx) {
+        Code code = Code.of(Bytecode.SEND);
+        String literal = ctx.ID().getText();
+        addLiteral(literal);
+        code = code.join(Code.of((short)0, (short)0, (short)0, (short) getLiteralIndex(literal)));
+        return code;
+    }
+
+    @Override
+    public Code visitBop(SmalltalkParser.BopContext ctx) {
+        for (SmalltalkParser.OpcharContext opcharContext : ctx.opchar()) {
+            addLiteral(opcharContext.getText());
+        }
+        return Code.None;
     }
 
     public String getProgramSourceForSubtree(ParserRuleContext ctx) {
         return ctx.toStringTree();
     }
+
+    /*
+    To parse: '^' expr
+
+    Code c = visit(ctx.expr());
+    return c.join(Compiler.method_return());
+     */
 }
