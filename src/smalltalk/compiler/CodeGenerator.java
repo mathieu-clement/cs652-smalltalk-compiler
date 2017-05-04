@@ -92,16 +92,13 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         if (localIndex != -1) {
             return code.join(Code.of(Bytecode.STORE_LOCAL, 0, delta, 0, localIndex));
         } else {
-            int fieldIndex = currentMethod.getFieldIndex(varName);
+            int fieldIndex = currentClassScope.getFieldIndex(varName);
             return code.join(Code.of(Bytecode.STORE_FIELD, 0, delta, 0, fieldIndex));
         }
     }
 
     @Override
     public Code visitInstanceVars(SmalltalkParser.InstanceVarsContext ctx) {
-        ctx.localVars().ID().stream()
-                .map(ParseTree::getText)
-                .forEach(currentMethod::addField);
         return Code.None;
     }
 

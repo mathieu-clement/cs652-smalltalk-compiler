@@ -2,9 +2,6 @@ package smalltalk.compiler.symbols;
 
 import org.antlr.v4.runtime.ParserRuleContext;
 
-import java.util.ArrayList;
-import java.util.List;
-
 /** A Smalltalk method symbol. It's like a block with a name.
  *
  *  Args and first level locals for a method are in the same scope.
@@ -18,22 +15,9 @@ public class STMethod extends STBlock {
 	 */
 	public boolean isClassMethod;
 
-	private List<String> fields = new ArrayList<>();
-
 	public STMethod(String name, ParserRuleContext tree) {
 		super(name, tree);
 	}
 
 	public boolean isMethod() { return true; }
-
-	public int getFieldIndex(String fieldName) {
-        return fields.indexOf(fieldName);
-    }
-
-    public void addField(String name) {
-	    if (fields.contains(name)) {
-            throw new IllegalStateException("Class already contains a field with name '" + name + "'");
-        }
-        fields.add(name);
-    }
 }
