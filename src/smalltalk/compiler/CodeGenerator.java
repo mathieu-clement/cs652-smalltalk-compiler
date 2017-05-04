@@ -89,10 +89,10 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         int localIndex = currentMethod.getLocalIndex(varName);
         int delta = currentMethod.getRelativeScopeCount(varName);
         if (localIndex != -1) {
-            return code.join(Code.of(Bytecode.STORE_LOCAL, 0, delta, 0, localIndex, Bytecode.POP));
+            return code.join(Code.of(Bytecode.STORE_LOCAL, 0, delta, 0, localIndex));
         } else {
             int fieldIndex = currentMethod.getFieldIndex(varName);
-            return code.join(Code.of(Bytecode.STORE_FIELD, 0, delta, 0, fieldIndex, Bytecode.POP));
+            return code.join(Code.of(Bytecode.STORE_FIELD, 0, delta, 0, fieldIndex));
         }
     }
 
