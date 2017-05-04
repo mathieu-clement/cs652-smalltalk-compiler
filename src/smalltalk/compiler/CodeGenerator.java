@@ -87,7 +87,7 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         Code code = visit(ctx.messageExpression());
         String varName = ctx.lvalue().sym.getName();
         int localIndex = currentMethod.getLocalIndex(varName);
-        int delta =  currentMethod.getRelativeScopeCount(varName);
+        int delta = currentMethod.getRelativeScopeCount(varName);
         if (localIndex != -1) {
             return code.join(Code.of(Bytecode.STORE_LOCAL, 0, delta, 0, localIndex, Bytecode.POP));
         } else {
@@ -108,7 +108,7 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
     public Code visitBlock(SmalltalkParser.BlockContext ctx) {
         pushScope(ctx.scope);
         ctx.scope.compiledBlock = new STCompiledBlock(currentClassScope, ctx.scope);
-        addBlockToParent(ctx.scope, ctx.scope.compiledBlock);
+        addBlockToCurrentMethod(ctx.scope.compiledBlock);
         Code code = Code.None;
         if (ctx.body().isEmpty()) {
             code = code.join(Code.of(Bytecode.NIL));
@@ -128,18 +128,15 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         return Code.of(Bytecode.BLOCK, 0, blockIndex);
     }
 
-    private void addBlockToParent(Scope childScope, STCompiledBlock childBlock) {
-        Scope enclosingScope = childScope.getEnclosingScope();
-        if (enclosingScope instanceof STBlock) {
-            STCompiledBlock[] parentBlocks = ((STBlock) enclosingScope).compiledBlock.blocks;
-            if (parentBlocks == null) {
-                parentBlocks = new STCompiledBlock[1];
-                parentBlocks[0] = childBlock;
-            } else {
-                STCompiledBlock[] newBlocks = Arrays.copyOf(parentBlocks, parentBlocks.length + 1);
-                ((STBlock) enclosingScope).compiledBlock.blocks = newBlocks;
-                newBlocks[newBlocks.length-1] = childBlock;
-            }
+    private void addBlockToCurrentMethod(STCompiledBlock childBlock) {
+        STCompiledBlock[] parentBlocks = currentMethod.compiledBlock.blocks;
+        if (parentBlocks == null) {
+            parentBlocks = new STCompiledBlock[1];
+            parentBlocks[0] = childBlock;
+        } else {
+            STCompiledBlock[] newBlocks = Arrays.copyOf(parentBlocks, parentBlocks.length + 1);
+            currentMethod.compiledBlock.blocks = newBlocks;
+            newBlocks[newBlocks.length - 1] = childBlock;
         }
     }
 
@@ -191,7 +188,7 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
     @Override
     public Code visitClassMethod(SmalltalkParser.ClassMethodContext ctx) {
         SmalltalkParser.MethodContext methodContext = ctx.method();
-        methodContext.scope.isClassMethod=true;
+        methodContext.scope.isClassMethod = true;
         visit(methodContext);
         return Code.None;
     }
@@ -256,7 +253,12 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
 
     @Override
     public Code visitMessageExpression(SmalltalkParser.MessageExpressionContext ctx) {
-        return visitChildren(ctx);
+        return visit(ctx.keywordExpression());
+    }
+
+    @Override
+    public Code visitPassThrough(SmalltalkParser.PassThroughContext ctx) {
+        return visit(ctx.recv);
     }
 
     @Override
@@ -294,15 +296,15 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
 
     @Override
     public Code visitLiteral(SmalltalkParser.LiteralContext ctx) {
-        if(ctx.STRING() != null) {
+        if (ctx.STRING() != null) {
             String str = ctx.STRING().getText();
             addLiteral(str);
             int literalIndex = getLiteralIndex(str);
-            return Code.of(Bytecode.PUSH_LITERAL,  literalIndex);
+            return Code.of(Bytecode.PUSH_LITERAL, literalIndex);
         }
         if (ctx.CHAR() != null) {
             char c = ctx.CHAR().getText().charAt(0);
-            return Code.of(Bytecode.PUSH_CHAR,  c);
+            return Code.of(Bytecode.PUSH_CHAR, c);
         }
         if (ctx.NUMBER() != null) {
             String intStr = ctx.NUMBER().getText();
@@ -356,11 +358,7 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
 
     @Override
     public Code visitSendMessage(SmalltalkParser.SendMessageContext ctx) {
-        Code code = Code.None;
-        for (ParseTree child : ctx.children) {
-            code = code.join(visit(child));
-        }
-        return code;
+        return visit(ctx.messageExpression());
     }
 
     public Code sendKeywordMsg(ParserRuleContext receiver,
@@ -374,7 +372,7 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         int receiverIndex = getLiteralIndex(keywords.get(0).getText());
 
         Code code = Code.None;
-        code = code.join(Code.of(Bytecode.SEND,  0,  keywords.size(),  0,  receiverIndex));
+        code = code.join(Code.of(Bytecode.SEND, 0, keywords.size(), 0, receiverIndex));
         return code;
     }
 
@@ -386,19 +384,19 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
 
     @Override
     public Code visitBinaryExpression(SmalltalkParser.BinaryExpressionContext ctx) {
-        for (SmalltalkParser.BopContext bopContext : ctx.bop()) {
-            visit(bopContext);
-        }
         Code code = Code.None;
         for (SmalltalkParser.UnaryExpressionContext unaryExprCtx : ctx.unaryExpression()) {
             code = code.join(visit(unaryExprCtx));
+        }
+        for (SmalltalkParser.BopContext bopContext : ctx.bop()) {
+            code = code.join(visit(bopContext));
         }
         return code;
     }
 
     @Override
     public Code visitUnaryIsPrimary(SmalltalkParser.UnaryIsPrimaryContext ctx) {
-        return Code.None; // TODO
+        return visit(ctx.primary());
     }
 
     @Override
@@ -406,7 +404,7 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         Code code = Code.of(Bytecode.SEND);
         String literal = ctx.ID().getText();
         addLiteral(literal);
-        code = code.join(Code.of(0, 0, 0,  getLiteralIndex(literal)));
+        code = code.join(Code.of(0, 0, 0, getLiteralIndex(literal)));
         return code;
     }
 
