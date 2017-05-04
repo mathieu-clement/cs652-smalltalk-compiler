@@ -1,5 +1,6 @@
 package smalltalk.compiler.symbols;
 
+import org.antlr.symtab.Utils;
 import org.stringtemplate.v4.ST;
 import org.stringtemplate.v4.misc.ErrorBuffer;
 import org.stringtemplate.v4.misc.STMessage;
@@ -9,8 +10,6 @@ import javax.json.Json;
 import javax.json.JsonArrayBuilder;
 import javax.json.JsonObject;
 import javax.json.JsonObjectBuilder;
-import java.util.ArrayList;
-import java.util.List;
 
 /** This object represents the compiled code for a block or method and is
  *  more or less equivalent to the class with same name in VM.
@@ -150,20 +149,8 @@ public class STCompiledBlock {
 		template.add("bytecode", bytecode);
 		template.add("assembly", Bytecode.disassemble(this.name, this.bytecode, enclosingClass.stringTable.toArray(), 0));
 		template.add("nblocks", blocks!=null ? blocks.length : 0);
-
-        if (blocks == null) {
-            System.err.println("blocks from " + this + " is null");
-        } else {
-            List<String> blockStrings = new ArrayList<>();
-            for (STCompiledBlock block : blocks) {
-                if (block == null) {
-                    throw new NullPointerException("STCompiledBlock " + this + " has a null block");
-                }
-                blockStrings.add(block.toTestString());
-            }
-            template.add("blocks", blocks);
-        }
-		return template.render();
+        template.add("blocks", Utils.map(blocks, STCompiledBlock::toTestString));
+        return template.render();
 	}
 
 	@Override

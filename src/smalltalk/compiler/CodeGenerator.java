@@ -66,8 +66,8 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         pushScope(ctx.scope);
         currentMethod = ctx.scope;
         currentClassScope = ctx.classScope;
-        Code code = visit(ctx.body()).join(Code.of(Bytecode.SELF, Bytecode.RETURN));
         ctx.scope.compiledBlock = new STCompiledBlock(currentClassScope, ctx.scope);
+        Code code = visit(ctx.body()).join(Code.of(Bytecode.SELF, Bytecode.RETURN));
         ctx.scope.compiledBlock.bytecode = code.bytes();
         popScope();
         currentMethod = null;
@@ -110,14 +110,10 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         ctx.scope.compiledBlock = new STCompiledBlock(currentClassScope, ctx.scope);
         addBlockToCurrentMethod(ctx.scope.compiledBlock);
         Code code = Code.None;
-        if (ctx.body().isEmpty()) {
-            code = code.join(Code.of(Bytecode.NIL));
-        } else {
-            if (ctx.blockArgs() != null) {
-                visit(ctx.blockArgs());
-            }
-            code = code.join(visit(ctx.body()));
+        if (ctx.blockArgs() != null) {
+            visit(ctx.blockArgs());
         }
+        code = code.join(visit(ctx.body()));
         code = code.join(Code.of(Bytecode.BLOCK_RETURN));
 
         ctx.scope.compiledBlock.bytecode = code.bytes();
@@ -131,8 +127,8 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
     private void addBlockToCurrentMethod(STCompiledBlock childBlock) {
         STCompiledBlock[] parentBlocks = currentMethod.compiledBlock.blocks;
         if (parentBlocks == null) {
-            parentBlocks = new STCompiledBlock[1];
-            parentBlocks[0] = childBlock;
+            currentMethod.compiledBlock.blocks = new STCompiledBlock[1];
+            currentMethod.compiledBlock.blocks[0] = childBlock;
         } else {
             STCompiledBlock[] newBlocks = Arrays.copyOf(parentBlocks, parentBlocks.length + 1);
             currentMethod.compiledBlock.blocks = newBlocks;
