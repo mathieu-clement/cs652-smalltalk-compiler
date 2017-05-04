@@ -45,7 +45,8 @@ public class STBlock extends MethodSymbol {
 	public STCompiledBlock compiledBlock;
 
 	private List<String> locals = new ArrayList<>();
-	private List<String> args = new ArrayList<>();
+	private int nargs = 0;
+	private int nlocals = 0;
 
 	/** Used by subclass STMethod */
 	protected STBlock(String name, ParserRuleContext tree) {
@@ -64,25 +65,28 @@ public class STBlock extends MethodSymbol {
 	public boolean isMethod() { return false; }
 
 	public int nargs() {
-        return args.size();
+        return nargs;
     } // fill in
 
     public void addLocalVariable(String name) {
-	    if (locals.contains(name)) {
-            throw new IllegalStateException("There is already a local variable '" + name + "'");
-        }
-        locals.add(name);
+        doAddLocal(name);
+	    nlocals++;
      }
 
     public void addArgument(String name) {
-        if (args.contains(name)) {
-            throw new IllegalStateException("There is already an argument '" + name + "'");
-        }
-        args.add(name);
+        doAddLocal(name);
+        nargs++;
     }
 
-	public int nlocals() {
-	    return locals.size();
+    private void doAddLocal(String name) {
+        if (locals.contains(name)) {
+            throw new IllegalStateException("There is already an argument or local variable '" + name + "'");
+        }
+        locals.add(name);
+    }
+
+    public int nlocals() {
+	    return nlocals;
 	} // fill in
 
 	/** Given the name of a local variable or argument, return the index from 0.
@@ -94,6 +98,10 @@ public class STBlock extends MethodSymbol {
 		// fill in
 		return locals.indexOf(name);
 	}
+
+	public int getArgumentIndex(String name) {
+        return getLocalIndex(name);
+    }
 
 	/** Look for name in current block; keep looking upwards in
 	 *  enclosingScope until found; return how many scopes we had to

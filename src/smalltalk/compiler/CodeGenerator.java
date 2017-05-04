@@ -285,6 +285,8 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
             return Code.withIntOperand(Bytecode.PUSH_LOCAL, currentMethod.getLocalIndex(id));
         } else if (currentClassScope.getFieldIndex(id) != -1) {
             return Code.withShortOperand(Bytecode.PUSH_FIELD, currentClassScope.getFieldIndex(id));
+        } else if (currentMethod.getArgumentIndex(id) != -1) {
+            return Code.withIntOperand(Bytecode.PUSH_LOCAL, currentMethod.getArgumentIndex(id));
         } else if ("Transcript".equals(id)) {
             int idx = currentClassScope.stringTable.add(id);
             return Code.withShortOperand(Bytecode.PUSH_GLOBAL, idx);
@@ -377,11 +379,14 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         for (SmalltalkParser.BinaryExpressionContext arg : args) {
             code = code.join(visit(arg));
         }
-        for (TerminalNode keyword : keywords) {
-            addLiteral(keyword.getText());
-        }
+            StringBuilder sb = new StringBuilder();
+            for (TerminalNode keyword : keywords) {
+                sb.append(keyword.getText());
+            }
+            String literal = sb.toString();
+            addLiteral(literal);
 
-        int receiverIndex = getLiteralIndex(keywords.get(0).getText());
+        int receiverIndex = getLiteralIndex(literal);
         code = code.join(Code.withShortOperands(Bytecode.SEND, keywords.size(), receiverIndex));
         return code;
     }
@@ -408,7 +413,7 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
     public Code visitUnaryMsgSend(SmalltalkParser.UnaryMsgSendContext ctx) {
         String literal = ctx.ID().getText();
         addLiteral(literal);
-        return Code.withIntOperand(Bytecode.SEND, getLiteralIndex(literal));
+        return Code.withShortOperands(Bytecode.SEND, 0, getLiteralIndex(literal));
     }
 
     @Override
