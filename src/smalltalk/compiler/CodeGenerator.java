@@ -97,8 +97,9 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
             int delta = currentMethod.getRelativeScopeCount(varName);
             return code.join(Code.withShortOperands(Bytecode.STORE_LOCAL, delta, localIndex));
         } else {
+            int delta = currentMethod.getRelativeScopeCount(varName);
             int fieldIndex = currentClassScope.getFieldIndex(varName);
-            return code.join(Code.withShortOperand(Bytecode.STORE_FIELD, fieldIndex));
+            return code.join(Code.of(Bytecode.STORE_FIELD, delta, fieldIndex));
         }
     }
 
@@ -170,15 +171,21 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
     @Override
     public Code visitKeywordMethod(SmalltalkParser.KeywordMethodContext ctx) {
         pushScope(ctx.scope);
+        currentMethod = ctx.scope;
         for (TerminalNode keywordNode : ctx.KEYWORD()) {
             String keyword = keywordNode.getText();
             addLiteral(keyword);
+        }
+        for (TerminalNode idNode : ctx.ID()) {
+            String arg = idNode.getText();
+            currentMethod.addArgument(arg);
         }
         ctx.scope.compiledBlock = new STCompiledBlock(currentClassScope, ctx.scope);
         ctx.scope.compiledBlock.bytecode = visit(ctx.methodBlock())
                 .join(Code.of(Bytecode.POP, Bytecode.SELF, Bytecode.RETURN))
                 .bytes();
         popScope();
+        currentMethod = null;
         return Code.None;
     }
 
@@ -198,9 +205,13 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         Code methodBlockCode = visit(ctx.methodBlock());
         ctx.scope.compiledBlock = new STCompiledBlock(currentClassScope, ctx.scope);
         if (ctx.methodBlock() instanceof SmalltalkParser.SmalltalkMethodBlockContext) {
-            ctx.scope.compiledBlock.bytecode = methodBlockCode
-                    .join(Code.of(Bytecode.POP, Bytecode.SELF, Bytecode.RETURN))
-                    .bytes();
+            if (((SmalltalkParser.SmalltalkMethodBlockContext) ctx.methodBlock()).body() instanceof SmalltalkParser.EmptyBodyContext) {
+                ctx.scope.compiledBlock.bytecode = Code.of(Bytecode.SELF, Bytecode.RETURN).bytes();
+            } else {
+                ctx.scope.compiledBlock.bytecode = methodBlockCode
+                        .join(Code.of(Bytecode.POP, Bytecode.SELF, Bytecode.RETURN))
+                        .bytes();
+            }
         } else if (ctx.methodBlock() instanceof SmalltalkParser.PrimitiveMethodBlockContext) {
             ctx.scope.compiledBlock.bytecode = new byte[0];
         }
@@ -287,11 +298,9 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
             return Code.withShortOperand(Bytecode.PUSH_FIELD, currentClassScope.getFieldIndex(id));
         } else if (currentMethod.getArgumentIndex(id) != -1) {
             return Code.withIntOperand(Bytecode.PUSH_LOCAL, currentMethod.getArgumentIndex(id));
-        } else if ("Transcript".equals(id)) {
+        } else {
             int idx = currentClassScope.stringTable.add(id);
             return Code.withShortOperand(Bytecode.PUSH_GLOBAL, idx);
-        } else {
-            throw new RuntimeException("Variable " + id + " not found");
         }
     }
 
@@ -379,12 +388,12 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         for (SmalltalkParser.BinaryExpressionContext arg : args) {
             code = code.join(visit(arg));
         }
-            StringBuilder sb = new StringBuilder();
-            for (TerminalNode keyword : keywords) {
-                sb.append(keyword.getText());
-            }
-            String literal = sb.toString();
-            addLiteral(literal);
+        StringBuilder sb = new StringBuilder();
+        for (TerminalNode keyword : keywords) {
+            sb.append(keyword.getText());
+        }
+        String literal = sb.toString();
+        addLiteral(literal);
 
         int receiverIndex = getLiteralIndex(literal);
         code = code.join(Code.withShortOperands(Bytecode.SEND, keywords.size(), receiverIndex));

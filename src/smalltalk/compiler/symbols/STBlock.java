@@ -108,7 +108,8 @@ public class STBlock extends MethodSymbol {
 	 *  jump to find name. 0 indicates same scope.
 	 */
 	public int getRelativeScopeCount(String name) {
-		// fill in
-		return 0;
+        // TODO fill in
+        int delta = 0;
+        return delta;
 	}
 }
