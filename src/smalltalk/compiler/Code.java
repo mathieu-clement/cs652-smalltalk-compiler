@@ -11,6 +11,14 @@ public class Code extends ByteList { // just an alias
 		return bytes;
 	}
 
+	public static Code of (int... args) {
+		Code bytes = new Code();
+		for (int i : args) {
+			bytes.add((short) i);
+		}
+		return bytes;
+	}
+
 	public static Code join(Code... chunks) {
 		Code bytes = new Code();
 		for (Code c : chunks) {
