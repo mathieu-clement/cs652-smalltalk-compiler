@@ -18,6 +18,31 @@ public class Code extends ByteList { // just an alias
 		}
 		return bytes;
 	}
+	
+	public static Code withIntOperand(short operation, int operand) {
+        checkBounds(operand);
+        return Code.of(operation, 0, 0, 0, operand);
+	}
+
+    private static void checkBounds(int operand) {
+        if (operand > Byte.MAX_VALUE) throw new IllegalArgumentException("sorry bro, operand is too large for me");
+    }
+
+    public static Code withShortOperand(short operation, int operand) {
+        checkBounds(operand);
+        return Code.of(operation, 0, operand);
+    }
+    
+    public static Code withShortOperands(short operation, int... operands) {
+        Code bytes = new Code();
+        bytes.add(operation);
+        for (int operand : operands) {
+            checkBounds(operand);
+            bytes.add((short) 0);
+            bytes.add((short) operand);
+        }
+        return bytes;
+    }
 
 	public static Code join(Code... chunks) {
 		Code bytes = new Code();

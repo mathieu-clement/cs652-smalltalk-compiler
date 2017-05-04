@@ -95,10 +95,10 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         int localIndex = currentMethod.getLocalIndex(varName);
         if (localIndex != -1) {
             int delta = currentMethod.getRelativeScopeCount(varName);
-            return code.join(Code.of(Bytecode.STORE_LOCAL, 0, delta, 0, localIndex));
+            return code.join(Code.withShortOperands(Bytecode.STORE_LOCAL, delta, localIndex));
         } else {
             int fieldIndex = currentClassScope.getFieldIndex(varName);
-            return code.join(Code.of(Bytecode.STORE_FIELD, 0, fieldIndex));
+            return code.join(Code.withShortOperand(Bytecode.STORE_FIELD, fieldIndex));
         }
     }
 
@@ -123,7 +123,7 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         int blockIndex = ctx.scope.index;
         popScope();
 
-        return Code.of(Bytecode.BLOCK, 0, blockIndex);
+        return Code.withShortOperand(Bytecode.BLOCK, blockIndex);
     }
 
     private void addBlockToCurrentMethod(STCompiledBlock childBlock) {
@@ -298,12 +298,12 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         String id = ctx.getText();
         Symbol symbol = currentScope.resolve(id);
         if (currentMethod.getLocalIndex(id) != -1) {
-            return Code.of(Bytecode.PUSH_LOCAL, 0, 0, 0, currentMethod.getLocalIndex(id));
+            return Code.withIntOperand(Bytecode.PUSH_LOCAL, currentMethod.getLocalIndex(id));
         } else if (currentClassScope.getFieldIndex(id) != -1) {
-            return Code.of(Bytecode.PUSH_FIELD, 0, currentClassScope.getFieldIndex(id));
+            return Code.withShortOperand(Bytecode.PUSH_FIELD, currentClassScope.getFieldIndex(id));
         } else if ("Transcript".equals(id)) {
             int idx = currentClassScope.stringTable.add(id);
-            return Code.of(Bytecode.PUSH_GLOBAL, 0, idx);
+            return Code.withShortOperand(Bytecode.PUSH_GLOBAL, idx);
         } else {
             throw new RuntimeException("Variable " + id + " not found");
         }
@@ -320,7 +320,7 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
             str = str.replaceAll("'", "");
             addLiteral(str);
             int literalIndex = getLiteralIndex(str);
-            return Code.of(Bytecode.PUSH_LITERAL, 0, literalIndex);
+            return Code.withShortOperand(Bytecode.PUSH_LITERAL, literalIndex);
         }
         if (ctx.CHAR() != null) {
             char c = ctx.CHAR().getText().charAt(0);
@@ -329,7 +329,7 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         if (ctx.NUMBER() != null) {
             String intStr = ctx.NUMBER().getText();
             short s = Short.parseShort(intStr);
-            return Code.of(Bytecode.PUSH_INT, 0, 0, 0, s);
+            return Code.withIntOperand(Bytecode.PUSH_INT, s);
         }
         String literal = ctx.getText();
         if (!literalBytecodes.containsKey(literal)) {
@@ -398,7 +398,7 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         }
 
         int receiverIndex = getLiteralIndex(keywords.get(0).getText());
-        code = code.join(Code.of(Bytecode.SEND, 0, keywords.size(), 0, receiverIndex));
+        code = code.join(Code.withShortOperands(Bytecode.SEND, keywords.size(), receiverIndex));
         return code;
     }
 
@@ -427,11 +427,9 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
 
     @Override
     public Code visitUnaryMsgSend(SmalltalkParser.UnaryMsgSendContext ctx) {
-        Code code = Code.of(Bytecode.SEND);
         String literal = ctx.ID().getText();
         addLiteral(literal);
-        code = code.join(Code.of(0, 0, 0, getLiteralIndex(literal)));
-        return code;
+        return Code.withIntOperand(Bytecode.SEND, getLiteralIndex(literal));
     }
 
     @Override
