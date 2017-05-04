@@ -67,7 +67,8 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         currentMethod = ctx.scope;
         currentClassScope = ctx.classScope;
         ctx.scope.compiledBlock = new STCompiledBlock(currentClassScope, ctx.scope);
-        Code code = visit(ctx.body()).join(Code.of(Bytecode.SELF, Bytecode.RETURN));
+        Code code = visit(ctx.body())
+                .join(Code.of(Bytecode.POP, Bytecode.SELF, Bytecode.RETURN));
         ctx.scope.compiledBlock.bytecode = code.bytes();
         popScope();
         currentMethod = null;
@@ -117,7 +118,6 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         code = code.join(Code.of(Bytecode.BLOCK_RETURN));
 
         ctx.scope.compiledBlock.bytecode = code.bytes();
-
         int blockIndex = ctx.scope.index;
         popScope();
 
@@ -138,9 +138,8 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
 
     @Override
     public Code visitBlockArgs(SmalltalkParser.BlockArgsContext ctx) {
-        // TODO Define locals?
         for (TerminalNode idNode : ctx.ID()) {
-
+            currentMethod.addLocalVariable(idNode.getText());
         }
         return Code.None;
     }
@@ -370,10 +369,10 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         int receiverIndex = getLiteralIndex(keywords.get(0).getText());
 
         Code code = new Code();
+        code = code.join(receiverCode);
         for (SmalltalkParser.BinaryExpressionContext arg : args) {
             code = code.join(visit(arg));
         }
-        code = code.join(receiverCode);
         code = code.join(Code.of(Bytecode.SEND, 0, keywords.size(), 0, receiverIndex));
         return code;
     }
