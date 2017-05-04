@@ -419,11 +419,13 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
     @Override
     public Code visitBinaryExpression(SmalltalkParser.BinaryExpressionContext ctx) {
         Code code = Code.None;
-        for (SmalltalkParser.UnaryExpressionContext unaryExprCtx : ctx.unaryExpression()) {
-            code = code.join(visit(unaryExprCtx));
-        }
-        for (SmalltalkParser.BopContext bopContext : ctx.bop()) {
-            code = code.join(visit(bopContext));
+        // Load 2 expressions, then apply binary operator
+        // Rinse and repeat
+        code = code.join(visit(ctx.unaryExpression(0)));
+        int j = 1;
+        for (int i = 0; i < ctx.bop().size(); i++) {
+            code = code.join(visit(ctx.unaryExpression(j++)));
+            code = code.join(visit(ctx.bop(i)));
         }
         return code;
     }
