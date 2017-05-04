@@ -436,9 +436,11 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
 
     @Override
     public Code visitBop(SmalltalkParser.BopContext ctx) {
+        StringBuilder sb = new StringBuilder();
         for (SmalltalkParser.OpcharContext opcharContext : ctx.opchar()) {
-            addLiteral(opcharContext.getText());
+            sb.append(opcharContext.getText());
         }
+        addLiteral(sb.toString());
         return Code.None;
     }
 
