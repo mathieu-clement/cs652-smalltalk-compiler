@@ -120,8 +120,6 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         code = code.join(Code.of(Bytecode.BLOCK_RETURN));
 
         ctx.scope.compiledBlock.bytecode = code.bytes();
-        ctx.scope.compiledBlock.nargs = currentMethod.nargs();
-        ctx.scope.compiledBlock.nlocals = currentMethod.nlocals();
         int blockIndex = ctx.scope.index;
         popScope();
 
@@ -379,12 +377,12 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         for (SmalltalkParser.BinaryExpressionContext arg : args) {
             code = code.join(visit(arg));
         }
-        StringBuilder sb = new StringBuilder();
-        for (TerminalNode keyword : keywords) {
-            sb.append(keyword.getText());
-        }
-        String literal = sb.toString();
-        addLiteral(literal);
+            StringBuilder sb = new StringBuilder();
+            for (TerminalNode keyword : keywords) {
+                sb.append(keyword.getText());
+            }
+            String literal = sb.toString();
+            addLiteral(literal);
 
         int receiverIndex = getLiteralIndex(literal);
         code = code.join(Code.withShortOperands(Bytecode.SEND, keywords.size(), receiverIndex));
