@@ -141,7 +141,7 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
     @Override
     public Code visitBlockArgs(SmalltalkParser.BlockArgsContext ctx) {
         for (TerminalNode idNode : ctx.ID()) {
-            currentMethod.addLocalVariable(idNode.getText());
+            currentMethod.addArgument(idNode.getText());
         }
         return Code.None;
     }
@@ -193,14 +193,12 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
     @Override
     public Code visitNamedMethod(SmalltalkParser.NamedMethodContext ctx) {
         currentMethod = ctx.scope;
+        Code methodBlockCode = visit(ctx.methodBlock());
         ctx.scope.compiledBlock = new STCompiledBlock(currentClassScope, ctx.scope);
-        if (ctx.methodBlock().isEmpty()) {
-            ctx.scope.compiledBlock.bytecode = Code.of(Bytecode.SELF, Bytecode.RETURN).bytes();
-        } else {
-            ctx.scope.compiledBlock.bytecode = visit(ctx.methodBlock())
+        ctx.scope.compiledBlock.bytecode = methodBlockCode
                     .join(Code.of(Bytecode.POP, Bytecode.SELF, Bytecode.RETURN))
                     .bytes();
-        }
+
         currentMethod = null;
         return Code.None;
     }
@@ -233,7 +231,7 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
     public Code visitFullBody(SmalltalkParser.FullBodyContext ctx) {
         Code code = Code.None;
         if (ctx.localVars() != null) {
-            code = code.join(visitLocalVars(ctx.localVars()));
+            code = code.join(visit(ctx.localVars()));
         }
         for (int i = 0; i < ctx.stat().size(); i++) {
             if (i != 0) {

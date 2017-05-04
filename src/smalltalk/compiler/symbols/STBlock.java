@@ -45,6 +45,7 @@ public class STBlock extends MethodSymbol {
 	public STCompiledBlock compiledBlock;
 
 	private List<String> locals = new ArrayList<>();
+	private List<String> args = new ArrayList<>();
 
 	/** Used by subclass STMethod */
 	protected STBlock(String name, ParserRuleContext tree) {
@@ -62,7 +63,9 @@ public class STBlock extends MethodSymbol {
 
 	public boolean isMethod() { return false; }
 
-	public int nargs() { return 0; } // fill in
+	public int nargs() {
+        return args.size();
+    } // fill in
 
     public void addLocalVariable(String name) {
 	    if (locals.contains(name)) {
@@ -70,6 +73,13 @@ public class STBlock extends MethodSymbol {
         }
         locals.add(name);
      }
+
+    public void addArgument(String name) {
+        if (args.contains(name)) {
+            throw new IllegalStateException("There is already an argument '" + name + "'");
+        }
+        args.add(name);
+    }
 
 	public int nlocals() {
 	    return locals.size();
