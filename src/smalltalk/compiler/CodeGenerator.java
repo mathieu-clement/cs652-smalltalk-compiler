@@ -255,21 +255,6 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
     }
 
     @Override
-    public Code visitMessageExpression(SmalltalkParser.MessageExpressionContext ctx) {
-        return visitChildren(ctx);
-    }
-
-    @Override
-    public Code visitPassThrough(SmalltalkParser.PassThroughContext ctx) {
-        return visitChildren(ctx);
-    }
-
-    @Override
-    public Code visitPrimary(SmalltalkParser.PrimaryContext ctx) {
-        return visitChildren(ctx);
-    }
-
-    @Override
     public Code visitReturn(SmalltalkParser.ReturnContext ctx) {
         Code e = visit(ctx.messageExpression());
         if (compiler.genDbg) {
@@ -417,11 +402,6 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
             code = code.join(visit(bopContext));
         }
         return code;
-    }
-
-    @Override
-    public Code visitUnaryIsPrimary(SmalltalkParser.UnaryIsPrimaryContext ctx) {
-        return visitChildren(ctx);
     }
 
     @Override
