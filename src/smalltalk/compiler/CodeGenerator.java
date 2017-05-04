@@ -237,16 +237,14 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
     public Code visitFullBody(SmalltalkParser.FullBodyContext ctx) {
         Code code = Code.None;
         if (ctx.localVars() != null) {
-            visitLocalVars(ctx.localVars());
+            code = code.join(visitLocalVars(ctx.localVars()));
         }
         for (int i = 0; i < ctx.stat().size(); i++) {
             if (i != 0) {
                 code = code.join(Code.of(Bytecode.POP));
             }
-            code = code.join(visit(ctx.stat(i)));
-        }
-        for (SmalltalkParser.StatContext statContext : ctx.stat()) {
-            code = code.join(visit(statContext));
+            Code statCode = visit(ctx.stat(i));
+            code = code.join(statCode);
         }
         return code;
     }
@@ -254,6 +252,16 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
     @Override
     public Code visitEmptyBody(SmalltalkParser.EmptyBodyContext ctx) {
         return Code.of(Bytecode.NIL);
+    }
+
+    @Override
+    public Code visitMessageExpression(SmalltalkParser.MessageExpressionContext ctx) {
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Code visitPrimary(SmalltalkParser.PrimaryContext ctx) {
+        return visitChildren(ctx);
     }
 
     @Override
