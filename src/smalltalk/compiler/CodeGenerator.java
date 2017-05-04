@@ -320,7 +320,7 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         if (ctx.NUMBER() != null) {
             String intStr = ctx.NUMBER().getText();
             short s = Short.parseShort(intStr);
-            return Code.of(Bytecode.PUSH_INT, s);
+            return Code.of(Bytecode.PUSH_INT, 0, 0, 0, s);
         }
         String literal = ctx.getText();
         if (!literalBytecodes.containsKey(literal)) {
