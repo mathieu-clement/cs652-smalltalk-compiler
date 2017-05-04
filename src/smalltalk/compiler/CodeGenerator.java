@@ -195,9 +195,13 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         currentMethod = ctx.scope;
         Code methodBlockCode = visit(ctx.methodBlock());
         ctx.scope.compiledBlock = new STCompiledBlock(currentClassScope, ctx.scope);
-        ctx.scope.compiledBlock.bytecode = methodBlockCode
+        if (ctx.methodBlock() instanceof SmalltalkParser.SmalltalkMethodBlockContext) {
+            ctx.scope.compiledBlock.bytecode = methodBlockCode
                     .join(Code.of(Bytecode.POP, Bytecode.SELF, Bytecode.RETURN))
                     .bytes();
+        } else if (ctx.methodBlock() instanceof SmalltalkParser.PrimitiveMethodBlockContext) {
+            ctx.scope.compiledBlock.bytecode = new byte[0];
+        }
 
         currentMethod = null;
         return Code.None;
@@ -297,8 +301,12 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
             return Code.of(Bytecode.PUSH_LOCAL, 0, 0, 0, currentMethod.getLocalIndex(id));
         } else if (currentClassScope.getFieldIndex(id) != -1) {
             return Code.of(Bytecode.PUSH_FIELD, 0, currentClassScope.getFieldIndex(id));
+        } else if ("Transcript".equals(id)) {
+            int idx = currentClassScope.stringTable.add(id);
+            return Code.of(Bytecode.PUSH_GLOBAL, 0, idx);
+        } else {
+            throw new RuntimeException("Variable " + id + " not found");
         }
-        throw new RuntimeException("Variable " + id + " not found");
     }
 
     public int getLiteralIndex(String s) {
@@ -309,9 +317,10 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
     public Code visitLiteral(SmalltalkParser.LiteralContext ctx) {
         if (ctx.STRING() != null) {
             String str = ctx.STRING().getText();
+            str = str.replaceAll("'", "");
             addLiteral(str);
             int literalIndex = getLiteralIndex(str);
-            return Code.of(Bytecode.PUSH_LITERAL, literalIndex);
+            return Code.of(Bytecode.PUSH_LITERAL, 0, literalIndex);
         }
         if (ctx.CHAR() != null) {
             char c = ctx.CHAR().getText().charAt(0);
@@ -339,6 +348,7 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
     public void addLiteral(String id) {
         currentClassScope.stringTable.add(id);
     }
+
 
     public Code dbgAtEndMain(Token t) {
         int charPos = t.getCharPositionInLine() + t.getText().length();
@@ -376,17 +386,18 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
                                Code receiverCode,
                                List<SmalltalkParser.BinaryExpressionContext> args,
                                List<TerminalNode> keywords) {
-        for (TerminalNode keyword : keywords) {
-            addLiteral(keyword.getText());
-        }
 
-        int receiverIndex = getLiteralIndex(keywords.get(0).getText());
 
         Code code = new Code();
         code = code.join(receiverCode);
         for (SmalltalkParser.BinaryExpressionContext arg : args) {
             code = code.join(visit(arg));
         }
+        for (TerminalNode keyword : keywords) {
+            addLiteral(keyword.getText());
+        }
+
+        int receiverIndex = getLiteralIndex(keywords.get(0).getText());
         code = code.join(Code.of(Bytecode.SEND, 0, keywords.size(), 0, receiverIndex));
         return code;
     }
