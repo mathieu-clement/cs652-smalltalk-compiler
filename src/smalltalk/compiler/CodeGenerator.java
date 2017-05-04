@@ -1,6 +1,7 @@
 package smalltalk.compiler;
 
 import org.antlr.symtab.Scope;
+import org.antlr.symtab.Symbol;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.tree.ParseTree;
@@ -63,6 +64,10 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
 
     @Override
     public Code visitMain(SmalltalkParser.MainContext ctx) {
+        if (ctx.body() instanceof SmalltalkParser.EmptyBodyContext) {
+            return Code.None;
+        }
+
         pushScope(ctx.scope);
         currentMethod = ctx.scope;
         currentClassScope = ctx.classScope;
@@ -88,12 +93,12 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         Code code = visit(ctx.messageExpression());
         String varName = ctx.lvalue().sym.getName();
         int localIndex = currentMethod.getLocalIndex(varName);
-        int delta = currentMethod.getRelativeScopeCount(varName);
         if (localIndex != -1) {
+            int delta = currentMethod.getRelativeScopeCount(varName);
             return code.join(Code.of(Bytecode.STORE_LOCAL, 0, delta, 0, localIndex));
         } else {
             int fieldIndex = currentClassScope.getFieldIndex(varName);
-            return code.join(Code.of(Bytecode.STORE_FIELD, 0, delta, 0, fieldIndex));
+            return code.join(Code.of(Bytecode.STORE_FIELD, 0, fieldIndex));
         }
     }
 
@@ -156,7 +161,7 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         pushScope(ctx.scope);
         ctx.scope.compiledBlock = new STCompiledBlock(currentClassScope, ctx.scope);
         ctx.scope.compiledBlock.bytecode = visit(ctx.methodBlock())
-                .join(Code.of(Bytecode.POP, Bytecode.SELF, Bytecode.BLOCK_RETURN))
+                .join(Code.of(Bytecode.POP, Bytecode.SELF, Bytecode.RETURN))
                 .bytes();
         popScope();
         return Code.None;
@@ -171,7 +176,7 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         }
         ctx.scope.compiledBlock = new STCompiledBlock(currentClassScope, ctx.scope);
         ctx.scope.compiledBlock.bytecode = visit(ctx.methodBlock())
-                .join(Code.of(Bytecode.POP, Bytecode.SELF, Bytecode.BLOCK_RETURN))
+                .join(Code.of(Bytecode.POP, Bytecode.SELF, Bytecode.RETURN))
                 .bytes();
         popScope();
         return Code.None;
@@ -187,14 +192,16 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
 
     @Override
     public Code visitNamedMethod(SmalltalkParser.NamedMethodContext ctx) {
+        currentMethod = ctx.scope;
         ctx.scope.compiledBlock = new STCompiledBlock(currentClassScope, ctx.scope);
         if (ctx.methodBlock().isEmpty()) {
-            ctx.scope.compiledBlock.bytecode = Code.of(Bytecode.SELF, Bytecode.BLOCK_RETURN).bytes();
+            ctx.scope.compiledBlock.bytecode = Code.of(Bytecode.SELF, Bytecode.RETURN).bytes();
         } else {
             ctx.scope.compiledBlock.bytecode = visit(ctx.methodBlock())
-                    .join(Code.of(Bytecode.POP, Bytecode.SELF, Bytecode.BLOCK_RETURN))
+                    .join(Code.of(Bytecode.POP, Bytecode.SELF, Bytecode.RETURN))
                     .bytes();
         }
+        currentMethod = null;
         return Code.None;
     }
 
@@ -282,6 +289,18 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
 //			System.out.println("popping from " + currentScope.getScopeName() + " to null");
 //		}
         currentScope = currentScope.getEnclosingScope();
+    }
+
+    @Override
+    public Code visitId(SmalltalkParser.IdContext ctx) {
+        String id = ctx.getText();
+        Symbol symbol = currentScope.resolve(id);
+        if (currentMethod.getLocalIndex(id) != -1) {
+            return Code.of(Bytecode.PUSH_LOCAL, 0, 0, 0, currentMethod.getLocalIndex(id));
+        } else if (currentClassScope.getFieldIndex(id) != -1) {
+            return Code.of(Bytecode.PUSH_FIELD, 0, currentClassScope.getFieldIndex(id));
+        }
+        throw new RuntimeException("Variable " + id + " not found");
     }
 
     public int getLiteralIndex(String s) {

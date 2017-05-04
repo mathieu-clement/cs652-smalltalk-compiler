@@ -71,7 +71,9 @@ public class STBlock extends MethodSymbol {
         locals.add(name);
      }
 
-	public int nlocals() { return locals.size(); } // fill in
+	public int nlocals() {
+	    return locals.size();
+	} // fill in
 
 	/** Given the name of a local variable or argument, return the index from 0.
 	 *  The arguments come first and then the locals. For example,
