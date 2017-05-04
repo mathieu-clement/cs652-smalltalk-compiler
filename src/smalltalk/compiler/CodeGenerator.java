@@ -244,8 +244,8 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
 
     @Override
     public Code visitEmptyBody(SmalltalkParser.EmptyBodyContext ctx) {
-        STCompiledBlock cplBlock = new STCompiledBlock(currentClassScope, new STBlock(currentMethod, ctx));
-        addBlockToCurrentMethod(cplBlock);
+//        STCompiledBlock cplBlock = new STCompiledBlock(currentClassScope, new STBlock(currentMethod, ctx));
+//        addBlockToCurrentMethod(cplBlock);
         return Code.of(Bytecode.NIL);
     }
 
@@ -369,7 +369,11 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
 
         int receiverIndex = getLiteralIndex(keywords.get(0).getText());
 
-        Code code = receiverCode;
+        Code code = new Code();
+        for (SmalltalkParser.BinaryExpressionContext arg : args) {
+            code = code.join(visit(arg));
+        }
+        code = code.join(receiverCode);
         code = code.join(Code.of(Bytecode.SEND, 0, keywords.size(), 0, receiverIndex));
         return code;
     }
