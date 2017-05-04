@@ -185,8 +185,10 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
     @Override
     public Code visitClassMethod(SmalltalkParser.ClassMethodContext ctx) {
         SmalltalkParser.MethodContext methodContext = ctx.method();
+        currentMethod = ctx.method().scope;
         methodContext.scope.isClassMethod = true;
         visit(methodContext);
+        currentMethod = null;
         return Code.None;
     }
 

@@ -94,8 +94,8 @@ public class STCompiledBlock {
 		this.enclosingClass = enclosingClass;
 		this.name = blk.getName();
 		this.qualifiedName = blk.getQualifiedName(">>");
-		nargs = blk.nargs();
-		nlocals = blk.nlocals();
+		nargs = blk.getNumberOfParameters();
+		nlocals = blk.getNumberOfVariables();
 		if ( blk instanceof STPrimitiveMethod ) {
 			primitiveName = ((STPrimitiveMethod) blk).primitiveName;
 		}
