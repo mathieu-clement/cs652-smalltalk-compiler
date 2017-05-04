@@ -77,10 +77,10 @@ public class STCompiledBlock {
 	public STCompiledBlock[] blocks;
 
 	/** The fixed number of arguments taken by this method */
-	public final int nargs;
+	public int nargs;
 
 	/** The number of local variables defined within the block, not including the arguments */
-	public final int nlocals;
+	public int nlocals;
 
 	/** In the compiler, this is the primitive name. In the VM, the equivalent
 	 *  class has a 'primitive' field that points at an actual Primitive object.
@@ -94,8 +94,6 @@ public class STCompiledBlock {
 		this.enclosingClass = enclosingClass;
 		this.name = blk.getName();
 		this.qualifiedName = blk.getQualifiedName(">>");
-		nargs = blk.nargs();
-		nlocals = blk.getNumberOfVariables(); // TODO was blk.nlocals() before
 		if ( blk instanceof STPrimitiveMethod ) {
 			primitiveName = ((STPrimitiveMethod) blk).primitiveName;
 		}
