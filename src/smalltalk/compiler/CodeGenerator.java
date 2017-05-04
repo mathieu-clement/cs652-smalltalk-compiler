@@ -256,12 +256,12 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
 
     @Override
     public Code visitMessageExpression(SmalltalkParser.MessageExpressionContext ctx) {
-        return visit(ctx.keywordExpression());
+        return visitChildren(ctx);
     }
 
     @Override
     public Code visitPassThrough(SmalltalkParser.PassThroughContext ctx) {
-        return visit(ctx.recv);
+        return visitChildren(ctx);
     }
 
     @Override
@@ -275,8 +275,7 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         if (compiler.genDbg) {
             e = Code.join(e, dbg(ctx.start)); // put dbg after expression as that is when it executes
         }
-        Code code = e.join(Compiler.method_return());
-        return code;
+        return e.join(Compiler.method_return());
     }
 
     public void pushScope(Scope scope) {
@@ -422,7 +421,7 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
 
     @Override
     public Code visitUnaryIsPrimary(SmalltalkParser.UnaryIsPrimaryContext ctx) {
-        return visit(ctx.primary());
+        return visitChildren(ctx);
     }
 
     @Override
@@ -438,8 +437,9 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         for (SmalltalkParser.OpcharContext opcharContext : ctx.opchar()) {
             sb.append(opcharContext.getText());
         }
-        addLiteral(sb.toString());
-        return Code.None;
+        String op = sb.toString();
+        addLiteral(op);
+        return Code.withShortOperands(Bytecode.SEND, 1, getLiteralIndex(op));
     }
 
     public String getProgramSourceForSubtree(ParserRuleContext ctx) {
