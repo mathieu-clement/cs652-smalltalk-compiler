@@ -151,7 +151,6 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
 
     @Override
     public Code visitSmalltalkMethodBlock(SmalltalkParser.SmalltalkMethodBlockContext ctx) {
-
         return visit(ctx.body());
     }
 
@@ -220,6 +219,7 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
 
     @Override
     public Code visitNamedMethod(SmalltalkParser.NamedMethodContext ctx) {
+        pushScope(ctx.scope);
         currentMethod = ctx.scope;
         ctx.scope.compiledBlock = new STCompiledBlock(currentClassScope, ctx.scope);
         Code methodBlockCode = visit(ctx.methodBlock());
@@ -235,6 +235,7 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
             ctx.scope.compiledBlock.bytecode = new byte[0];
         }
 
+        popScope();
         currentMethod = null;
         return Code.None;
     }
