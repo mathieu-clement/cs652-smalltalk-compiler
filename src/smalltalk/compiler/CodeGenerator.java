@@ -160,6 +160,16 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
     }
 
     @Override
+    public Code visitPrimary(SmalltalkParser.PrimaryContext ctx) {
+        return super.visitPrimary(ctx);
+    }
+
+    @Override
+    public Code visitUnaryIsPrimary(SmalltalkParser.UnaryIsPrimaryContext ctx) {
+        return super.visitUnaryIsPrimary(ctx);
+    }
+
+    @Override
     public Code visitPrimitiveMethodBlock(SmalltalkParser.PrimitiveMethodBlockContext ctx) {
         return Code.None;
     }
@@ -267,8 +277,7 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
             if (i != 0) {
                 code = code.join(Code.of(Bytecode.POP));
             }
-            Code statCode = visit(ctx.stat(i));
-            code = code.join(statCode);
+            code = code.join(visit(ctx.stat(i)));
         }
         return code;
     }
@@ -403,7 +412,7 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
     public Code sendKeywordMsg(ParserRuleContext receiver,
                                Code receiverCode,
                                List<SmalltalkParser.BinaryExpressionContext> args,
-                               List<TerminalNode> keywords, boolean isSuper) {
+                               List<TerminalNode> keywords) {
 
 
         Code code = new Code();
@@ -418,13 +427,9 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         String literal = sb.toString();
         addLiteral(literal);
 
-        if (isSuper) {
-            code = code.join(Code.of(Bytecode.SELF));
-        }
-
         int receiverIndex = getLiteralIndex(literal);
         code = code.join(Code.withShortOperands(
-                isSuper ? Bytecode.SEND_SUPER : Bytecode.SEND,
+                Bytecode.SEND,
                 keywords.size(),
                 receiverIndex));
         return code;
@@ -435,19 +440,32 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         Code recvCode = visit(ctx.recv);
         boolean isSuper = ctx.recv.unaryExpression().stream()
                 .anyMatch(unaryExpressionContext -> unaryExpressionContext instanceof SmalltalkParser.UnarySuperMsgSendContext);
-        return sendKeywordMsg(ctx.recv, recvCode, ctx.args, ctx.KEYWORD(), isSuper);
+        return sendKeywordMsg(ctx.recv, recvCode, ctx.args, ctx.KEYWORD());
+    }
+
+    @Override
+    public Code visitUnaryMsgSend(SmalltalkParser.UnaryMsgSendContext ctx) {
+        String literal = ctx.ID().getText();
+        addLiteral(literal);
+
+        return visit(ctx.unaryExpression())
+                .join(Code.withShortOperands(
+                        Bytecode.SEND, 0, getLiteralIndex(literal)));
     }
 
     @Override
     public Code visitUnarySuperMsgSend(SmalltalkParser.UnarySuperMsgSendContext ctx) {
-        addLiteral(ctx.ID().getText());
-        return visitChildren(ctx);
+        String literal = ctx.ID().getText();
+        addLiteral(literal);
+        return Code.of(Bytecode.SELF)
+                .join(Code.withShortOperands(
+                        Bytecode.SEND_SUPER, 0, getLiteralIndex(literal)));
     }
 
     @Override
     public Code visitSuperKeywordSend(SmalltalkParser.SuperKeywordSendContext ctx) {
         Code recvCode = visit(ctx.binaryExpression);
-        return sendKeywordMsg(ctx.binaryExpression, recvCode, ctx.args, ctx.KEYWORD(), true);
+        return sendKeywordMsg(ctx.binaryExpression, recvCode, ctx.args, ctx.KEYWORD());
     }
 
     @Override
@@ -462,13 +480,6 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
             code = code.join(visit(ctx.bop(i)));
         }
         return code;
-    }
-
-    @Override
-    public Code visitUnaryMsgSend(SmalltalkParser.UnaryMsgSendContext ctx) {
-        String literal = ctx.ID().getText();
-        addLiteral(literal);
-        return Code.withShortOperands(Bytecode.SEND, 0, getLiteralIndex(literal));
     }
 
     @Override
