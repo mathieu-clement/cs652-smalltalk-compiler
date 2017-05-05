@@ -418,6 +418,10 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         String literal = sb.toString();
         addLiteral(literal);
 
+        if (isSuper) {
+            code = code.join(Code.of(Bytecode.SELF));
+        }
+
         int receiverIndex = getLiteralIndex(literal);
         code = code.join(Code.withShortOperands(
                 isSuper ? Bytecode.SEND_SUPER : Bytecode.SEND,
