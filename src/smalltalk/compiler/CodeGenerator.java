@@ -1,15 +1,11 @@
 package smalltalk.compiler;
 
 import org.antlr.symtab.Scope;
-import org.antlr.symtab.Symbol;
 import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.TerminalNode;
-import smalltalk.compiler.symbols.STClass;
-import smalltalk.compiler.symbols.STCompiledBlock;
-import smalltalk.compiler.symbols.STMethod;
-import smalltalk.compiler.symbols.STPrimitiveMethod;
+import smalltalk.compiler.symbols.*;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -24,8 +20,8 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
     public static final boolean dumpCode = false;
 
     public STClass currentClassScope;
-    public STMethod currentMethod;
     public Scope currentScope;
+    public STMethod currentMethod;
 
     /**
      * With which compiler are we generating code?
@@ -99,7 +95,7 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         String varName = ctx.lvalue().sym.getName();
         int localIndex = currentMethod.getLocalIndex(varName);
         if (localIndex != -1) {
-            int delta = currentMethod.getRelativeScopeCount(varName);
+            int delta = getRelativeScopeCount(varName);
             return code.join(Code.withShortOperands(Bytecode.STORE_LOCAL, delta, localIndex));
         } else {
             int fieldIndex = currentClassScope.getFieldIndex(varName);
@@ -155,6 +151,7 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
 
     @Override
     public Code visitSmalltalkMethodBlock(SmalltalkParser.SmalltalkMethodBlockContext ctx) {
+
         return visit(ctx.body());
     }
 
@@ -322,17 +319,36 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
     @Override
     public Code visitId(SmalltalkParser.IdContext ctx) {
         String id = ctx.getText();
-        Symbol symbol = currentScope.resolve(id);
         if (currentMethod.getLocalIndex(id) != -1) {
-            return Code.withShortOperands(Bytecode.PUSH_LOCAL, currentMethod.getRelativeScopeCount(id), currentMethod.getLocalIndex(id));
+            return Code.withShortOperands(Bytecode.PUSH_LOCAL, getRelativeScopeCount(id), currentMethod.getLocalIndex(id));
         } else if (currentClassScope.getFieldIndex(id) != -1) {
             return Code.withShortOperand(Bytecode.PUSH_FIELD, currentClassScope.getFieldIndex(id));
         } else if (currentMethod.getArgumentIndex(id) != -1) {
-            return Code.of(Bytecode.PUSH_LOCAL, currentMethod.getRelativeScopeCount(id), 0, currentMethod.getArgumentIndex(id));
+            return Code.of(Bytecode.PUSH_LOCAL, getRelativeScopeCount(id), 0, currentMethod.getArgumentIndex(id));
         } else {
             int idx = currentClassScope.stringTable.add(id);
             return Code.withShortOperand(Bytecode.PUSH_GLOBAL, idx);
         }
+    }
+
+    /**
+     * Look for name in current block; keep looking upwards in
+     * enclosingScope until found; return how many scopes we had to
+     * jump to find name. 0 indicates same scope.
+     */
+    public int getRelativeScopeCount(String name) {
+        int count = 0;
+        Scope scope = currentScope;
+        while (scope.getSymbol(name) == null) {
+            scope = scope.getEnclosingScope();
+            if (scope == null) {
+                throw new IllegalArgumentException(name + " not found");
+            }
+            if (scope instanceof STBlock) {
+                count++;
+            }
+        }
+        return count;
     }
 
     public int getLiteralIndex(String s) {
