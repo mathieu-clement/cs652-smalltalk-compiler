@@ -182,10 +182,10 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
     public Code visitKeywordMethod(SmalltalkParser.KeywordMethodContext ctx) {
         pushScope(ctx.scope);
         currentMethod = ctx.scope;
-        for (TerminalNode keywordNode : ctx.KEYWORD()) {
-            String keyword = keywordNode.getText();
-            addLiteral(keyword);
-        }
+//        for (TerminalNode keywordNode : ctx.KEYWORD()) {
+//            String keyword = keywordNode.getText();
+//            addLiteral(keyword);
+//        }
         for (TerminalNode idNode : ctx.ID()) {
             String arg = idNode.getText();
             currentMethod.addArgument(arg);
