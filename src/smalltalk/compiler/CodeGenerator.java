@@ -85,7 +85,7 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
     public Code visitLocalVars(SmalltalkParser.LocalVarsContext ctx) {
         ctx.ID().stream()
                 .map(ParseTree::getText)
-                .forEach(currentMethod::addLocalVariable);
+                .forEach(s -> ((STBlock) currentScope).addLocalVariable(s));
         return Code.None;
     }
 
@@ -144,7 +144,7 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
     @Override
     public Code visitBlockArgs(SmalltalkParser.BlockArgsContext ctx) {
         for (TerminalNode idNode : ctx.ID()) {
-            currentMethod.addArgument(idNode.getText());
+            ((STBlock)currentScope).addArgument(idNode.getText());
         }
         return Code.None;
     }
@@ -202,6 +202,8 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         ctx.scope.compiledBlock.bytecode = visit(ctx.methodBlock())
                 .join(Code.of(Bytecode.POP, Bytecode.SELF, Bytecode.RETURN))
                 .bytes();
+        ctx.scope.compiledBlock.setNargs(ctx.scope.getNumberOfParameters());
+        ctx.scope.compiledBlock.setNlocals(ctx.scope.getNumberOfVariables() - ctx.scope.getNumberOfParameters());
         popScope();
         currentMethod = null;
         return Code.None;
@@ -320,13 +322,32 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
     @Override
     public Code visitId(SmalltalkParser.IdContext ctx) {
         String id = ctx.getText();
-        if (currentMethod.getLocalIndex(id) != -1) {
-            return Code.withShortOperands(Bytecode.PUSH_LOCAL, getRelativeScopeCount(id), currentMethod.getLocalIndex(id));
+        int localIndex = currentMethod.getLocalIndex(id);
+        int localIndexBlock = ((STBlock)currentScope).getLocalIndex(id);
+        if (localIndex != -1) {
+            int relativeScopeCount = getRelativeScopeCount(id);
+            return Code.withShortOperands(Bytecode.PUSH_LOCAL, relativeScopeCount, localIndex);
+        } else if (localIndexBlock != -1) {
+            int relativeScopeCount = getRelativeScopeCount(id);
+            return Code.withShortOperands(Bytecode.PUSH_LOCAL, relativeScopeCount, localIndexBlock);
         } else if (currentClassScope.getFieldIndex(id) != -1) {
             return Code.withShortOperand(Bytecode.PUSH_FIELD, currentClassScope.getFieldIndex(id));
         } else if (currentMethod.getArgumentIndex(id) != -1) {
-            return Code.of(Bytecode.PUSH_LOCAL, getRelativeScopeCount(id), 0, currentMethod.getArgumentIndex(id));
+            int relativeScopeCount = getRelativeScopeCount(id);
+            return Code.of(Bytecode.PUSH_LOCAL, relativeScopeCount, 0, currentMethod.getArgumentIndex(id));
         } else {
+            try {
+                if (getRelativeScopeCount(id) > 0) {
+                    Scope s = currentScope;
+                    int relativeScopeCount = getRelativeScopeCount(id);
+                    for (int i = 0; i < relativeScopeCount; i++) {
+                        s = currentScope.getEnclosingScope();
+                    }
+                    return Code.withShortOperands(Bytecode.PUSH_LOCAL, relativeScopeCount, ((STBlock) s).getLocalIndex(id));
+                }
+            } catch (IllegalArgumentException iae) {
+                // not found
+            }
             int idx = currentClassScope.stringTable.add(id);
             return Code.withShortOperand(Bytecode.PUSH_GLOBAL, idx);
         }
