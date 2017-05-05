@@ -6,7 +6,10 @@ import org.antlr.v4.runtime.ParserRuleContext;
 import org.antlr.v4.runtime.Token;
 import org.antlr.v4.runtime.tree.ParseTree;
 import org.antlr.v4.runtime.tree.TerminalNode;
-import smalltalk.compiler.symbols.*;
+import smalltalk.compiler.symbols.STClass;
+import smalltalk.compiler.symbols.STCompiledBlock;
+import smalltalk.compiler.symbols.STMethod;
+import smalltalk.compiler.symbols.STPrimitiveMethod;
 
 import java.util.Arrays;
 import java.util.HashMap;
@@ -277,11 +280,21 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
 
     @Override
     public Code visitReturn(SmalltalkParser.ReturnContext ctx) {
-        Code e = visit(ctx.messageExpression());
+        Code e = visitChildren(ctx);
         if (compiler.genDbg) {
             e = Code.join(e, dbg(ctx.start)); // put dbg after expression as that is when it executes
         }
         return e.join(Compiler.method_return());
+    }
+
+    @Override
+    public Code visitMessageExpression(SmalltalkParser.MessageExpressionContext ctx) {
+        return visitChildren(ctx);
+    }
+
+    @Override
+    public Code visitPassThrough(SmalltalkParser.PassThroughContext ctx) {
+        return visitChildren(ctx);
     }
 
     public void pushScope(Scope scope) {
@@ -390,7 +403,7 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
     public Code sendKeywordMsg(ParserRuleContext receiver,
                                Code receiverCode,
                                List<SmalltalkParser.BinaryExpressionContext> args,
-                               List<TerminalNode> keywords) {
+                               List<TerminalNode> keywords, boolean isSuper) {
 
 
         Code code = new Code();
@@ -406,20 +419,30 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         addLiteral(literal);
 
         int receiverIndex = getLiteralIndex(literal);
-        code = code.join(Code.withShortOperands(Bytecode.SEND, keywords.size(), receiverIndex));
+        code = code.join(Code.withShortOperands(
+                isSuper ? Bytecode.SEND_SUPER : Bytecode.SEND,
+                keywords.size(),
+                receiverIndex));
         return code;
     }
 
     @Override
     public Code visitKeywordSend(SmalltalkParser.KeywordSendContext ctx) {
         Code recvCode = visit(ctx.recv);
-        return sendKeywordMsg(ctx.recv, recvCode, ctx.args, ctx.KEYWORD());
+        boolean isSuper = ctx.recv.unaryExpression().stream()
+                .anyMatch(unaryExpressionContext -> unaryExpressionContext instanceof SmalltalkParser.UnarySuperMsgSendContext);
+        return sendKeywordMsg(ctx.recv, recvCode, ctx.args, ctx.KEYWORD(), isSuper);
+    }
+
+    @Override
+    public Code visitUnarySuperMsgSend(SmalltalkParser.UnarySuperMsgSendContext ctx) {
+        return super.visitUnarySuperMsgSend(ctx);
     }
 
     @Override
     public Code visitSuperKeywordSend(SmalltalkParser.SuperKeywordSendContext ctx) {
         Code recvCode = visit(ctx.binaryExpression);
-        return sendKeywordMsg(ctx.binaryExpression, recvCode, ctx.args, ctx.KEYWORD());
+        return sendKeywordMsg(ctx.binaryExpression, recvCode, ctx.args, ctx.KEYWORD(), true);
     }
 
     @Override
