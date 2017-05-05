@@ -150,21 +150,6 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
     }
 
     @Override
-    public Code visitSmalltalkMethodBlock(SmalltalkParser.SmalltalkMethodBlockContext ctx) {
-        return visit(ctx.body());
-    }
-
-    @Override
-    public Code visitPrimary(SmalltalkParser.PrimaryContext ctx) {
-        return super.visitPrimary(ctx);
-    }
-
-    @Override
-    public Code visitUnaryIsPrimary(SmalltalkParser.UnaryIsPrimaryContext ctx) {
-        return super.visitUnaryIsPrimary(ctx);
-    }
-
-    @Override
     public Code visitPrimitiveMethodBlock(SmalltalkParser.PrimitiveMethodBlockContext ctx) {
         return Code.None;
     }
@@ -295,16 +280,6 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         return e.join(Compiler.method_return());
     }
 
-    @Override
-    public Code visitMessageExpression(SmalltalkParser.MessageExpressionContext ctx) {
-        return visitChildren(ctx);
-    }
-
-    @Override
-    public Code visitPassThrough(SmalltalkParser.PassThroughContext ctx) {
-        return visitChildren(ctx);
-    }
-
     public void pushScope(Scope scope) {
         currentScope = scope;
     }
@@ -325,16 +300,13 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         int localIndex = currentMethod.getLocalIndex(id);
         int localIndexBlock = ((STBlock)currentScope).getLocalIndex(id);
         if (localIndex != -1) {
-            int relativeScopeCount = getRelativeScopeCount(id);
-            return Code.withShortOperands(Bytecode.PUSH_LOCAL, relativeScopeCount, localIndex);
+            return Code.withShortOperands(Bytecode.PUSH_LOCAL, getRelativeScopeCount(id), localIndex);
         } else if (localIndexBlock != -1) {
-            int relativeScopeCount = getRelativeScopeCount(id);
-            return Code.withShortOperands(Bytecode.PUSH_LOCAL, relativeScopeCount, localIndexBlock);
+            return Code.withShortOperands(Bytecode.PUSH_LOCAL, getRelativeScopeCount(id), localIndexBlock);
         } else if (currentClassScope.getFieldIndex(id) != -1) {
             return Code.withShortOperand(Bytecode.PUSH_FIELD, currentClassScope.getFieldIndex(id));
         } else if (currentMethod.getArgumentIndex(id) != -1) {
-            int relativeScopeCount = getRelativeScopeCount(id);
-            return Code.of(Bytecode.PUSH_LOCAL, relativeScopeCount, 0, currentMethod.getArgumentIndex(id));
+            return Code.of(Bytecode.PUSH_LOCAL, getRelativeScopeCount(id), 0, currentMethod.getArgumentIndex(id));
         } else {
             try {
                 if (getRelativeScopeCount(id) > 0) {
@@ -431,14 +403,6 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
 
     public Code dbg(int line, int charPos) {
         return Compiler.dbg(getLiteralIndex(compiler.getFileName()), line, charPos);
-    }
-
-    public Code store(String id) {
-        return null;
-    }
-
-    public Code push(String id) {
-        return null;
     }
 
     @Override
