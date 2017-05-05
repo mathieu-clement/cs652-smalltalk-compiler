@@ -1,6 +1,7 @@
 package smalltalk.compiler.symbols;
 
 import org.antlr.symtab.MethodSymbol;
+import org.antlr.symtab.Scope;
 import org.antlr.v4.runtime.ParserRuleContext;
 
 import java.util.ArrayList;
@@ -108,8 +109,16 @@ public class STBlock extends MethodSymbol {
 	 *  jump to find name. 0 indicates same scope.
 	 */
 	public int getRelativeScopeCount(String name) {
-        // TODO fill in
-        int delta = 0;
+        if (getLocalIndex(name) != -1) {
+            return 0;
+        }
+
+        int delta = 1;
+        Scope scope = this.getEnclosingScope();
+        while (scope.getSymbol(name) == null) {
+            scope = scope.getEnclosingScope();
+            delta++;
+        }
         return delta;
 	}
 }

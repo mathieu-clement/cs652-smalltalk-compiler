@@ -102,9 +102,8 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
             int delta = currentMethod.getRelativeScopeCount(varName);
             return code.join(Code.withShortOperands(Bytecode.STORE_LOCAL, delta, localIndex));
         } else {
-            int delta = currentMethod.getRelativeScopeCount(varName);
             int fieldIndex = currentClassScope.getFieldIndex(varName);
-            return code.join(Code.of(Bytecode.STORE_FIELD, delta, fieldIndex));
+            return code.join(Code.withShortOperand(Bytecode.STORE_FIELD, fieldIndex));
         }
     }
 
@@ -325,11 +324,11 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         String id = ctx.getText();
         Symbol symbol = currentScope.resolve(id);
         if (currentMethod.getLocalIndex(id) != -1) {
-            return Code.withIntOperand(Bytecode.PUSH_LOCAL, currentMethod.getLocalIndex(id));
+            return Code.withShortOperands(Bytecode.PUSH_LOCAL, currentMethod.getRelativeScopeCount(id), currentMethod.getLocalIndex(id));
         } else if (currentClassScope.getFieldIndex(id) != -1) {
             return Code.withShortOperand(Bytecode.PUSH_FIELD, currentClassScope.getFieldIndex(id));
         } else if (currentMethod.getArgumentIndex(id) != -1) {
-            return Code.withIntOperand(Bytecode.PUSH_LOCAL, currentMethod.getArgumentIndex(id));
+            return Code.of(Bytecode.PUSH_LOCAL, currentMethod.getRelativeScopeCount(id), 0, currentMethod.getArgumentIndex(id));
         } else {
             int idx = currentClassScope.stringTable.add(id);
             return Code.withShortOperand(Bytecode.PUSH_GLOBAL, idx);
