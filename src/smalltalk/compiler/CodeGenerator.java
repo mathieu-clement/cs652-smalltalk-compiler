@@ -75,8 +75,8 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         Code code = visit(ctx.body())
                 .join(Code.of(Bytecode.POP, Bytecode.SELF, Bytecode.RETURN));
         ctx.scope.compiledBlock.bytecode = code.bytes();
-        ctx.scope.compiledBlock.nargs = ctx.scope.getNumberOfParameters();
-        ctx.scope.compiledBlock.nlocals = ctx.scope.getNumberOfVariables();
+        ctx.scope.compiledBlock.setNargs(ctx.scope.getNumberOfParameters());
+        ctx.scope.compiledBlock.setNlocals(ctx.scope.getNumberOfVariables());
         popScope();
         currentMethod = null;
         return code;
@@ -123,8 +123,8 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         code = code.join(Code.of(Bytecode.BLOCK_RETURN));
 
         ctx.scope.compiledBlock.bytecode = code.bytes();
-        ctx.scope.compiledBlock.nargs = ctx.scope.getNumberOfParameters();
-        ctx.scope.compiledBlock.nlocals = ctx.scope.getNumberOfVariables() - ctx.scope.getNumberOfParameters();
+        ctx.scope.compiledBlock.setNargs(ctx.scope.getNumberOfParameters());
+        ctx.scope.compiledBlock.setNlocals(ctx.scope.getNumberOfVariables() - ctx.scope.getNumberOfParameters());
         int blockIndex = ctx.scope.index;
         popScope();
 
@@ -167,8 +167,8 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         ctx.scope.compiledBlock = new STCompiledBlock(currentClassScope, ctx.scope);
         if (ctx.methodBlock() instanceof SmalltalkParser.PrimitiveMethodBlockContext) {
             ctx.scope.compiledBlock.bytecode = new byte[0];
-            ctx.scope.compiledBlock.nlocals = 0;
-            ctx.scope.compiledBlock.nargs = ctx.scope.getNumberOfParameters();
+            ctx.scope.compiledBlock.setNlocals(0);
+            ctx.scope.compiledBlock.setNargs(ctx.scope.getNumberOfParameters());
         } else {
             ctx.scope.compiledBlock.bytecode = visit(ctx.methodBlock())
                     .join(Code.of(Bytecode.POP, Bytecode.SELF, Bytecode.RETURN))
@@ -212,8 +212,8 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
     @Override
     public Code visitNamedMethod(SmalltalkParser.NamedMethodContext ctx) {
         currentMethod = ctx.scope;
-        Code methodBlockCode = visit(ctx.methodBlock());
         ctx.scope.compiledBlock = new STCompiledBlock(currentClassScope, ctx.scope);
+        Code methodBlockCode = visit(ctx.methodBlock());
         if (ctx.methodBlock() instanceof SmalltalkParser.SmalltalkMethodBlockContext) {
             if (((SmalltalkParser.SmalltalkMethodBlockContext) ctx.methodBlock()).body() instanceof SmalltalkParser.EmptyBodyContext) {
                 ctx.scope.compiledBlock.bytecode = Code.of(Bytecode.SELF, Bytecode.RETURN).bytes();
@@ -354,11 +354,11 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
         currentClassScope.stringTable.add(id);
     }
 
-
     public Code dbgAtEndMain(Token t) {
         int charPos = t.getCharPositionInLine() + t.getText().length();
         return dbg(t.getLine(), charPos);
     }
+
 
     public Code dbgAtEndBlock(Token t) {
         int charPos = t.getCharPositionInLine() + t.getText().length();
@@ -414,6 +414,12 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
     public Code visitKeywordSend(SmalltalkParser.KeywordSendContext ctx) {
         Code recvCode = visit(ctx.recv);
         return sendKeywordMsg(ctx.recv, recvCode, ctx.args, ctx.KEYWORD());
+    }
+
+    @Override
+    public Code visitSuperKeywordSend(SmalltalkParser.SuperKeywordSendContext ctx) {
+        Code recvCode = visit(ctx.binaryExpression);
+        return sendKeywordMsg(ctx.binaryExpression, recvCode, ctx.args, ctx.KEYWORD());
     }
 
     @Override

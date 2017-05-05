@@ -64,7 +64,14 @@ public class STCompiledBlock {
 	/** The fully qualified name for this block or method like foo>>x or T>>x */
 	public final String qualifiedName;
 
-	/** The byte code instructions for this specific block, if not primitive. */
+	private int nlocals;
+	private boolean nlocalsChanged;
+	private int nargs;
+	private boolean nargsChanged;
+
+    private final STBlock blk;
+
+    /** The byte code instructions for this specific block, if not primitive. */
 	public byte[] bytecode;
 
 	/** If this is a compiled method, not just a block, this is the list
@@ -76,12 +83,6 @@ public class STCompiledBlock {
  	 */
 	public STCompiledBlock[] blocks;
 
-	/** The fixed number of arguments taken by this method */
-	public int nargs;
-
-	/** The number of local variables defined within the block, not including the arguments */
-	public int nlocals;
-
 	/** In the compiler, this is the primitive name. In the VM, the equivalent
 	 *  class has a 'primitive' field that points at an actual Primitive object.
  	 */
@@ -91,11 +92,10 @@ public class STCompiledBlock {
 	public final boolean isClassMethod;
 
 	public STCompiledBlock(STClass enclosingClass, STBlock blk) {
+	    this.blk = blk;
 		this.enclosingClass = enclosingClass;
 		this.name = blk.getName();
 		this.qualifiedName = blk.getQualifiedName(">>");
-		nargs = blk.nargs();
-		nlocals = blk.nlocals();
 		if ( blk instanceof STPrimitiveMethod ) {
 			primitiveName = ((STPrimitiveMethod) blk).primitiveName;
 		}
@@ -119,8 +119,8 @@ public class STCompiledBlock {
 		if ( primitiveName!=null ) {
 			builder.add("primitiveName", primitiveName);
 		}
-		builder.add("nargs", nargs);
-		builder.add("nlocals", nlocals);
+		builder.add("nargs", nargs());
+		builder.add("nlocals", nlocals());
 		JsonArrayBuilder codeArray = Json.createArrayBuilder();
 		if ( bytecode!=null ) {
 			for (byte b : bytecode) {
@@ -138,14 +138,34 @@ public class STCompiledBlock {
 		return builder.build();
 	}
 
-	public String getAsString() {
+	public void setNargs(int nargs) {
+	    this.nargs = nargs;
+	    nargsChanged = true;
+    }
+
+    public void setNlocals(int nlocals) {
+	    this.nlocals = nlocals;
+	    nlocalsChanged = true;
+    }
+
+    private int nargs() {
+	    if (nargsChanged) return nargs;
+        return blk.nargs();
+    }
+
+    private int nlocals() {
+	    if (nlocalsChanged) return nlocals;
+        return blk.nlocals();
+    }
+
+    public String getAsString() {
 		ST template = new ST(testStringTemplate);
 		template.impl.nativeGroup.setListener(templateErrorListener);
 		template.add("name", name);
 		template.add("isClassMethod", isClassMethod);
 		template.add("qualifiedName", qualifiedName);
-		template.add("nargs", nargs);
-		template.add("nlocals", nlocals);
+		template.add("nargs", nargs());
+		template.add("nlocals", nlocals());
 		template.add("bytecode", bytecode);
 		template.add("assembly", Bytecode.disassemble(this.name, this.bytecode, enclosingClass.stringTable.toArray(), 0));
 		template.add("nblocks", blocks!=null ? blocks.length : 0);
@@ -153,7 +173,7 @@ public class STCompiledBlock {
         return template.render();
 	}
 
-	@Override
+    @Override
 	public String toString() {
 		return name;
 	}
