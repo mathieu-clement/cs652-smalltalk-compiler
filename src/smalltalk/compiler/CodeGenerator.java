@@ -436,7 +436,8 @@ public class CodeGenerator extends SmalltalkBaseVisitor<Code> {
 
     @Override
     public Code visitUnarySuperMsgSend(SmalltalkParser.UnarySuperMsgSendContext ctx) {
-        return super.visitUnarySuperMsgSend(ctx);
+        addLiteral(ctx.ID().getText());
+        return visitChildren(ctx);
     }
 
     @Override
